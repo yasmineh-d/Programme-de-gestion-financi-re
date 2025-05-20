@@ -1,7 +1,10 @@
-from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QLabel, QPushButton, QDialog, QMessageBox, QLineEdit, QTableWidget, QTableWidgetItem
+from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QLabel, QPushButton, QDialog, QMessageBox, QLineEdit, QTableWidget, QTableWidgetItem, QFileDialog
 from PyQt5.QtCore import Qt
 import sys
 import sqlite3
+import pandas as pd
+from fpdf import FPDF
+import os
 
 # دالة لإنشاء اتصال بقاعدة البيانات
 def get_database_connection():
@@ -1006,44 +1009,15 @@ class FinalAccountsManager(QDialog):
         self.table_widget.setHorizontalHeaderLabels(["اسم الحساب", "الرصيد الافتتاحي", "الإيرادات", "المصروفات"])
         layout.addWidget(self.table_widget)
 
-        # حقول إدخال بيانات الحسابات الختامية
-        self.account_name_label = QLabel("اسم الحساب:")
-        self.account_name_label.setAlignment(Qt.AlignRight)
-        layout.addWidget(self.account_name_label)
-        self.account_name_input = QLineEdit()
-        self.account_name_input.setAlignment(Qt.AlignRight)
-        layout.addWidget(self.account_name_input)
-
-        self.opening_balance_label = QLabel("الرصيد الافتتاحي:")
-        self.opening_balance_label.setAlignment(Qt.AlignRight)
-        layout.addWidget(self.opening_balance_label)
-        self.opening_balance_input = QLineEdit()
-        self.opening_balance_input.setAlignment(Qt.AlignRight)
-        layout.addWidget(self.opening_balance_input)
-
-        self.revenues_label = QLabel("الإيرادات:")
-        self.revenues_label.setAlignment(Qt.AlignRight)
-        layout.addWidget(self.revenues_label)
-        self.revenues_input = QLineEdit()
-        self.revenues_input.setAlignment(Qt.AlignRight)
-        layout.addWidget(self.revenues_input)
-
-        self.expenses_label = QLabel("المصروفات:")
-        self.expenses_label.setAlignment(Qt.AlignRight)
-        layout.addWidget(self.expenses_label)
-        self.expenses_input = QLineEdit()
-        self.expenses_input.setAlignment(Qt.AlignRight)
-        layout.addWidget(self.expenses_input)
-
-        # زر إضافة الحساب
-        self.add_button = QPushButton("إضافة الحساب")
-        self.add_button.clicked.connect(self.add_account)
-        layout.addWidget(self.add_button)
-
         # زر تحميل البيانات
         self.load_button = QPushButton("تحميل البيانات")
         self.load_button.clicked.connect(self.load_data)
         layout.addWidget(self.load_button)
+
+        # زر تصدير إلى Excel
+        self.export_excel_button = QPushButton("تصدير إلى Excel")
+        self.export_excel_button.clicked.connect(self.export_to_excel)
+        layout.addWidget(self.export_excel_button)
 
         # زر الإغلاق
         self.close_button = QPushButton("إغلاق")
@@ -1075,30 +1049,19 @@ class FinalAccountsManager(QDialog):
         except Exception as e:
             QMessageBox.critical(self, "خطأ", f"حدث خطأ أثناء تحميل البيانات: {e}")
 
-    def add_account(self):
-        """إضافة حساب جديد إلى الحسابات الختامية"""
-        account_name = self.account_name_input.text()
-        opening_balance = self.opening_balance_input.text()
-        revenues = self.revenues_input.text()
-        expenses = self.expenses_input.text()
-
-        if not all([account_name, opening_balance, revenues, expenses]):
-            QMessageBox.warning(self, "خطأ", "يرجى ملء جميع الحقول")
-            return
-
+    def export_to_excel(self):
+        """تصدير البيانات إلى ملف Excel"""
         try:
             connection = get_database_connection()
-            cursor = connection.cursor()
-            cursor.execute(
-                "INSERT INTO final_accounts (account_name, opening_balance, revenues, expenses) VALUES (?, ?, ?, ?)",
-                (account_name, opening_balance, revenues, expenses),
-            )
-            connection.commit()
+            query = "SELECT * FROM final_accounts"
+            df = pd.read_sql_query(query, connection)
             connection.close()
-            QMessageBox.information(self, "نجاح", "تمت إضافة الحساب بنجاح")
-            self.load_data()  # تحديث الجدول بعد الإضافة
+
+            # حفظ البيانات في ملف Excel
+            df.to_excel("final_accounts.xlsx", index=False, engine='openpyxl')
+            QMessageBox.information(self, "نجاح", "تم تصدير البيانات إلى ملف Excel بنجاح: final_accounts.xlsx")
         except Exception as e:
-            QMessageBox.critical(self, "خطأ", f"حدث خطأ أثناء إضافة الحساب: {e}")
+            QMessageBox.critical(self, "خطأ", f"حدث خطأ أثناء تصدير البيانات إلى Excel: {e}")
 
 # نافذة عرض التقارير المالية
 class ReportsManager(QDialog):
@@ -1118,6 +1081,11 @@ class ReportsManager(QDialog):
         self.load_button = QPushButton("تحميل التقارير")
         self.load_button.clicked.connect(self.load_reports)
         layout.addWidget(self.load_button)
+
+        # زر تصدير إلى Excel
+        self.export_excel_button = QPushButton("تصدير إلى Excel")
+        self.export_excel_button.clicked.connect(self.export_to_excel)
+        layout.addWidget(self.export_excel_button)
 
         # زر الإغلاق
         self.close_button = QPushButton("إغلاق")
@@ -1148,16 +1116,16 @@ class ReportsManager(QDialog):
             total_profit = total_sales - total_expenses
 
             # إعداد البيانات للتقرير
-            reports = [
+            self.reports = [
                 ("إجمالي المبيعات", "إجمالي قيمة المبيعات", total_sales, ""),
                 ("إجمالي المصروفات", "إجمالي قيمة المصروفات", total_expenses, ""),
-                ("إجمالي المشتريات", "إجمالي قيمة المشتريات", total_purchases, ""),
+                ("إجمالي المشتريات", "إجمالي قيمة المصروفات", total_purchases, ""),
                 ("إجمالي الأرباح", "إجمالي الأرباح بعد المصروفات", total_profit, ""),
             ]
 
             # عرض البيانات في الجدول
             self.table_widget.setRowCount(0)
-            for report in reports:
+            for report in self.reports:
                 row_position = self.table_widget.rowCount()
                 self.table_widget.insertRow(row_position)
                 for column, value in enumerate(report):
@@ -1169,75 +1137,99 @@ class ReportsManager(QDialog):
         finally:
             connection.close()
 
-def debug_final_accounts():
-    """عرض محتويات جدول الحسابات الختامية لأغراض التصحيح"""
-    try:
-        connection = get_database_connection()
-        cursor = connection.cursor()
-        cursor.execute("SELECT * FROM final_accounts")
-        rows = cursor.fetchall()
-        connection.close()
+    def export_to_excel(self):
+        """تصدير التقرير المالي إلى ملف Excel"""
+        try:
+            # تحويل البيانات إلى DataFrame
+            df = pd.DataFrame(self.reports, columns=["نوع التقرير", "الوصف", "القيمة", "التاريخ"])
 
-        if not rows:
-            print("جدول الحسابات الختامية فارغ.")
-        else:
-            print("محتويات جدول الحسابات الختامية:")
-            for row in rows:
-                print(row)
-    except Exception as e:
-        print(f"حدث خطأ أثناء فحص جدول الحسابات الختامية: {e}")
+            # فتح مربع حوار لاختيار مسار الحفظ
+            options = QFileDialog.Options()
+            file_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "حفظ التقرير المالي كملف Excel",
+                os.path.join(os.path.expanduser("~"), "financial_report.xlsx"),
+                "Excel Files (*.xlsx)",
+                options=options
+            )
 
-def update_final_accounts():
-    """تحديث الحسابات الختامية بناءً على البيانات المسجلة في البرنامج"""
-    try:
-        connection = get_database_connection()
-        cursor = connection.cursor()
+            if not file_path:  # إذا لم يتم اختيار مسار
+                QMessageBox.warning(self, "إلغاء", "تم إلغاء عملية الحفظ.")
+                return
 
-        # عرض محتويات الجدول قبل الحذف
-        print("قبل الحذف:")
-        debug_final_accounts()
+            # حفظ البيانات في ملف Excel
+            df.to_excel(file_path, index=False, engine='openpyxl')
+            QMessageBox.information(self, "نجاح", f"تم تصدير التقرير المالي إلى ملف Excel بنجاح: {file_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "خطأ", f"حدث خطأ أثناء تصدير التقرير إلى Excel: {e}")
 
-        # حذف جميع البيانات من جدول الحسابات الختامية
-        cursor.execute("DELETE FROM final_accounts")
-        connection.commit()  # تأكيد الحذف قبل إدخال البيانات الجديدة
+# نافذة تصدير التقارير المالية
+class ExportReportDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("تصدير التقرير المالي")
+        self.setGeometry(100, 100, 400, 300)
+        layout = QVBoxLayout()
 
-        # عرض محتويات الجدول بعد الحذف
-        print("بعد الحذف:")
-        debug_final_accounts()
+        # حقول إدخال بيانات التقرير
+        self.report_name_label = QLabel("اسم التقرير:")
+        self.report_name_label.setAlignment(Qt.AlignRight)
+        layout.addWidget(self.report_name_label)
+        self.report_name_input = QLineEdit()
+        self.report_name_input.setAlignment(Qt.AlignRight)
+        layout.addWidget(self.report_name_input)
 
-        # التحقق من أن الجدول أصبح فارغًا
-        cursor.execute("SELECT COUNT(*) FROM final_accounts")
-        count = cursor.fetchone()[0]
-        if count != 0:
-            QMessageBox.critical(None, "خطأ", "فشل في حذف البيانات الافتراضية من جدول الحسابات الختامية")
+        self.description_label = QLabel("الوصف:")
+        self.description_label.setAlignment(Qt.AlignRight)
+        layout.addWidget(self.description_label)
+        self.description_input = QLineEdit()
+        self.description_input.setAlignment(Qt.AlignRight)
+        layout.addWidget(self.description_input)
+
+        self.date_label = QLabel("التاريخ:")
+        self.date_label.setAlignment(Qt.AlignRight)
+        layout.addWidget(self.date_label)
+        self.date_input = QLineEdit()
+        self.date_input.setAlignment(Qt.AlignRight)
+        layout.addWidget(self.date_input)
+
+        # زر حفظ التقرير
+        self.save_report_button = QPushButton("حفظ التقرير")
+        self.save_report_button.setStyleSheet("text-align: right;")
+        self.save_report_button.clicked.connect(self.save_report)
+        layout.addWidget(self.save_report_button)
+
+        # زر الإغلاق
+        self.close_button = QPushButton("إغلاق")
+        self.close_button.setStyleSheet("text-align: right;")
+        self.close_button.clicked.connect(self.close)
+        layout.addWidget(self.close_button)
+
+        self.setLayout(layout)
+
+    def save_report(self):
+        """حفظ التقرير المالي إلى قاعدة البيانات"""
+        report_name = self.report_name_input.text()
+        description = self.description_input.text()
+        date = self.date_input.text()
+
+        if not all([report_name, description, date]):
+            QMessageBox.warning(self, "خطأ", "يرجى ملء جميع الحقول")
             return
 
-        # حساب إجمالي الإيرادات من جدول المبيعات
-        cursor.execute("SELECT SUM(price * quantity) FROM sales")
-        total_revenues = cursor.fetchone()[0] or 0.0
-
-        # حساب إجمالي المصروفات من جدول المصروفات
-        cursor.execute("SELECT SUM(amount) FROM expenses")
-        total_expenses = cursor.fetchone()[0] or 0.0
-
-        # حساب الأرباح (الإيرادات - المصروفات)
-        total_profits = total_revenues - total_expenses
-
-        # إدخال البيانات الجديدة إلى جدول الحسابات الختامية
-        cursor.executemany("""
-            INSERT INTO final_accounts (account_name, opening_balance, revenues, expenses)
-            VALUES (?, ?, ?, ?)
-        """, [
-            ("الإيرادات", 0.0, total_revenues, 0.0),
-            ("المصروفات", 0.0, 0.0, total_expenses),
-            ("الأرباح", 0.0, total_profits, 0.0)
-        ])
-
-        connection.commit()  # تأكيد الإدخالات الجديدة
-        connection.close()
-        QMessageBox.information(None, "نجاح", "تم تحديث الحسابات الختامية بنجاح")
-    except Exception as e:
-        QMessageBox.critical(None, "خطأ", f"حدث خطأ أثناء تحديث الحسابات الختامية: {e}")
+        try:
+            connection = get_database_connection()
+            cursor = connection.cursor()
+            cursor.execute(
+                "INSERT INTO financial_reports (report_name, description, date) VALUES (?, ?, ?)",
+                (report_name, description, date),
+            )
+            connection.commit()
+            connection.close()
+            QMessageBox.information(self, "نجاح", "تم حفظ التقرير المالي بنجاح")
+            self.close()
+        except Exception as e:
+            QMessageBox.critical(self, "خطأ", f"حدث خطأ أثناء حفظ التقرير المالي: {e}")
 
 # النافذة الرئيسية
 class MainWindow(QMainWindow):
