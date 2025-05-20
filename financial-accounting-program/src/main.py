@@ -102,6 +102,51 @@ class PurchasesManager(QDialog):
         super().__init__()
         self.setWindowTitle("إدارة المشتريات")
         self.setGeometry(100, 100, 600, 400)
+
+        # تحسين مظهر واجهة إدارة المشتريات
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #ffffff;
+            }
+            QLabel {
+                font-size: 14px;
+                color: #34495e;
+                margin: 5px 0;
+            }
+            QPushButton {
+                background-color: #2ecc71;
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                border-radius: 8px;
+                padding: 8px;
+                border: 2px solid #27ae60;
+            }
+            QPushButton:hover {
+                background-color: #27ae60;
+            }
+            QPushButton:pressed {
+                background-color: #1e8449;
+            }
+            QTableWidget {
+                background-color: #f9f9f9;
+                border: 1px solid #dcdcdc;
+                gridline-color: #e0e0e0;
+                font-size: 12px;
+                border-radius: 5px;
+            }
+            QLineEdit {
+                border: 1px solid #bdc3c7;
+                padding: 8px;
+                font-size: 12px;
+                border-radius: 5px;
+                background-color: #ecf0f1;
+            }
+            QLineEdit:focus {
+                border-color: #2ecc71;
+            }
+        """)
+
         layout = QVBoxLayout()
 
         # جدول عرض المشتريات
@@ -1237,6 +1282,53 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("برنامج المحاسبة المالية")
         self.setGeometry(100, 100, 600, 400)
+
+        # تحسين المظهر العام للنافذة الرئيسية
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #f0f4f8;
+            }
+            QLabel {
+                font-size: 20px;
+                font-weight: bold;
+                color: #2c3e50;
+                margin-bottom: 15px;
+            }
+            QPushButton {
+                background-color: #3498db;
+                color: white;
+                font-size: 16px;
+                font-weight: bold;
+                border-radius: 8px;
+                padding: 10px;
+                margin: 5px 0;
+                border: 2px solid #2980b9;
+            }
+            QPushButton:hover {
+                background-color: #2980b9;
+            }
+            QPushButton:pressed {
+                background-color: #1c5980;
+            }
+            QTableWidget {
+                background-color: #ffffff;
+                border: 1px solid #bdc3c7;
+                gridline-color: #e0e0e0;
+                font-size: 14px;
+                border-radius: 5px;
+            }
+            QLineEdit {
+                border: 1px solid #bdc3c7;
+                padding: 8px;
+                font-size: 14px;
+                border-radius: 5px;
+                background-color: #ecf0f1;
+            }
+            QLineEdit:focus {
+                border-color: #3498db;
+            }
+        """)
+
         layout = QVBoxLayout()
         container = QWidget()
         container.setLayout(layout)
@@ -1246,7 +1338,7 @@ class MainWindow(QMainWindow):
         title_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(title_label)
 
-        # إضافة الأزرار للأقسام المختلفة
+        # تحسين الأزرار في النافذة الرئيسية
         sections = [
             ("إدارة المشتريات", self.show_purchases_manager),
             ("إدارة المبيعات", self.show_sales_manager),
